@@ -4,7 +4,7 @@
 # CUIDADO con los nombres de las columnas, deben ser:
 import numpy as np
 from geopy.distance import vincenty
-
+import auxiliar_functions
 # Auxiliar Functions
 
 def split_sequence_by_weekdays(df_sequence):
@@ -175,7 +175,7 @@ def get_minimum_travel_distance(df_sequence):
 			last_lat = destination_lat
 			last_long = destination_long
 
-	if distance < min_distance and distance != 0s:
+	if distance < min_distance and distance != 0:
 		min_distance = distance
 	return min_distance/1000
 # 33. 13 17
@@ -226,11 +226,29 @@ def get_regularity_dt():
 def get_n_similar_start_times():
 	return 0
 # 30
-def get_mean_start_time_fist_trip():
-	return 0
+# funciona muy mal cuando es irregular
+def get_mean_start_time_first_trip(df_sequence):
+	start_times = []
+	last_weekday = -1
+	for index, stage in df_sequence.iterrows():
+		if stage.weekday != last_weekday:
+			start_times.append(int(auxiliar_functions.hour_to_seconds(stage.tiempo_subida)))
+		last_weekday = stage.weekday
+	return int(np.mean(start_times))
 # 30
-def get_mean_start_time_last_trip():
-	return 0
+# funciona muy mal cuando es irregular
+def get_mean_start_time_last_trip(df_sequence):
+	end_times = []
+	last_weekday = -1
+	an_end_time = 0
+	for index, stage in df_sequence.iterrows():
+		if stage.weekday != last_weekday and last_weekday > -1:
+			end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+		if stage.netapa == 1:
+			an_end_time = stage.tiempo_subida
+		last_weekday = stage.weekday
+	end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+	return int(np.mean(end_times))
  
 ## Travel Frequency 
 
@@ -337,6 +355,7 @@ def get_percentage_rail_exclusive_days(df_sequence):
 	if metro_exclusive:
 		exclusive_metro_days += 1
 	return 	exclusive_metro_days/traveled_days*100
+
 # inventado
 # Considera etapas
 def get_percentage_bus_trips():

@@ -69,3 +69,13 @@ def frame_config(frame):
     frame = frame.sort_values(by=['id', 'tiempo_subida'])
     frame['diferencia_tiempo'] = (frame['tiempo_subida']-frame['tiempo_subida'].shift()).fillna(0)
     return frame.apply(update_vals, axis=1)
+
+
+def hour_to_seconds(an_hour):
+    return int(an_hour.hour*3600 + an_hour.minute *60 + an_hour.second)
+
+def seconds_to_hour(a_lot_of_seconds):
+    hour = int(a_lot_of_seconds/3600)
+    minute = int((a_lot_of_seconds - hour * 3600)/60)
+    second = a_lot_of_seconds - hour * 3600 - minute * 60
+    return str(hour)+":"+str(minute)+":"+str(second) 
