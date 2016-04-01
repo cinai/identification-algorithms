@@ -198,12 +198,30 @@ def get_n_unic_locations():
 #33 13
 def get_n_different_locations():
 	return 0
-# 30
-def get_percentage_different_last_origin():
-	return 0
-# 30
-def get_percentage_different_first_origin():
-	return 0
+# 30 
+def get_percentage_different_last_origin(df_sequence):
+	last_origins = []
+	last_weekday = -1
+	last_origin = ""
+	for index, stage in df_sequence.iterrows():
+		if stage.weekday != last_weekday and last_weekday > -1:
+			last_origins.append(stage.par_subida)
+		last_weekday = stage.weekday
+		last_origin = stage.par_subida
+	last_origins.append(last_origin)
+	the_set = list(set(last_origins))
+	return len(the_set)*1.0/len(last_origins)*100
+
+# 30 
+def get_percentage_different_first_origin(df_sequence):
+	first_origins = []
+	last_weekday = -1
+	for index, stage in df_sequence.iterrows():
+		if stage.weekday != last_weekday:
+			first_origins.append(stage.par_subida)
+		last_weekday = stage.weekday
+	the_set = list(set(first_origins))
+	return len(the_set)*1.0/len(first_origins)*100
 # 33 ?
 def get_ROIs():
 	return 0
