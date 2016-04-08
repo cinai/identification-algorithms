@@ -179,25 +179,72 @@ def get_minimum_travel_distance(df_sequence):
 		min_distance = distance
 	return min_distance/1000
 # 33. 13 17
-def get_radius_of_gyration():
-	return 0
+# solo considera las subidas
+def get_radius_of_gyration(df_sequence):
+	locations = []
+	rm = np.array([0,0])
+	for index, stage in df_sequence.iterrows():
+		if stage.par_subida == stage.par_subida:
+			locations.append(np.array([stage.lat_subida,stage.long_subida]))
+			rm= rm + np.array([stage.lat_subida,stage.long_subida])
+	rm = rm/len(locations)
+	suma = 0.0
+	for r in locations:
+		distance = vincenty((r[0],r[1]),(rm[0],rm[1])).meters
+		suma = suma + distance**2
+	return (suma/len(locations))**0.5
 
 ## OD Frecuency
-# 36 13
+# 36 13 TODO: leer paper
 def get_entropy():
 	return 0
+# Funcion que busca una locacion en el arreglo mls y retorna el indice
+# buscar_locacion: [string] string -> int
+def buscar_locacion(mls,location):
+	try:
+		index_location = mls.index(location)
+	except ValueError:
+		index_location = -1
+	return index_location
 #36
-def get_entropy_nct():
-	return 0
+def get_unc_entropy(df_sequence):
+	pis = get_pi_locations(df_sequence)
+	la_suma = 0.0
+	for pi in pis:
+		la_suma = la_suma + pi*np.log2(pi)
+	return -la_suma
+
+def get_pi_locations(df_sequence):
+	locations = []
+	n_locations = []
+	for index, stage in df_sequence.iterrows():
+		if stage.par_subida == stage.par_subida:
+			indice = buscar_locacion(locations,stage.par_subida)
+			if indice > -1:
+				n_locations[indice] += 1
+			else:
+				locations.append(stage.par_subida)
+				n_locations.append(1)
+	la_suma = sum(n_locations)
+	n_locations[:] = [x*1.0/la_suma for x in n_locations]
+	return n_locations
 # 36
-def get_aleatory_entropy():
-	return 0
+def get_random_entropy(df_sequence):
+	nl = get_n_different_locations(df_sequence)
+	return np.log2(nl)
 #36
 def get_n_unic_locations():
 	return 0
 #33 13
-def get_n_different_locations():
-	return 0
+# obtiene el numero de locaciones diferentes
+# solo considera las subidas
+def get_n_different_locations(df_sequence):
+	locations = []
+	for index, stage in df_sequence.iterrows():
+		if stage.par_subida == stage.par_subida:
+			locations.append(stage.par_subida)
+	the_set = set(locations)
+	return len(the_set)
 # 30 
 def get_percentage_different_last_origin(df_sequence):
 	last_origins = []
@@ -222,25 +269,25 @@ def get_percentage_different_first_origin(df_sequence):
 		last_weekday = stage.weekday
 	the_set = list(set(first_origins))
 	return len(the_set)*1.0/len(first_origins)*100
-# 33 ?
+# ?
 def get_ROIs():
 	return 0
 
 ## Regularity
-# 33 17
-def get_return_degree():
+# 33 17 .. en 33 hablan de las PRD PRI, no info
+def get_return_degree(df_sequence):
 	return 0
-# 27
-def get_n_similar_sequences():
+# 27 no definen la feature
+def get_n_similar_sequences(df_sequence):
 	return 0
 # 36
-def get_regularity_dt():
+def get_regularity_dt(df_sequence):
 	return 0
 
 ### Temporal Features
 
 ## Start Time
-# 27
+# 27 no definen la feature
 def get_n_similar_start_times():
 	return 0
 # 30
