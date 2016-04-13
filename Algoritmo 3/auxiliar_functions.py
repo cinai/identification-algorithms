@@ -61,6 +61,7 @@ def queryToCSV(matrix, user_id, user_index, str_diff = ''):
 # Función que configura el data frame con los datos
 def frame_config(frame):
     frame['tiempo_subida'] = pd.to_datetime(frame.tiempo_subida)
+    frame = frame.apply(update_vals, axis=1)
     frame['weekday'] = frame.tiempo_subida.dt.dayofweek
     frame['lat_subida'] = frame.apply(add_vals,args=('lat','par_subida'),axis=1)
     frame['lat_bajada'] = frame.apply(add_vals,args=('lat','par_subida'),axis=1)
@@ -68,7 +69,7 @@ def frame_config(frame):
     frame['long_bajada'] = frame.apply(add_vals,args=('long','par_bajada'),axis=1)
     frame = frame.sort_values(by=['id', 'tiempo_subida'])
     frame['diferencia_tiempo'] = (frame['tiempo_subida']-frame['tiempo_subida'].shift()).fillna(0)
-    return frame.apply(update_vals, axis=1)
+    return frame
 
 
 def hour_to_seconds(an_hour):

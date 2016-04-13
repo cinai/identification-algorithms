@@ -117,6 +117,8 @@ def mu(u,I_n):
 
 def ro(u,I_n):
 	a_sum = 0
+	if len(I_n) == 1:
+		return 0.000001
 	mu_u = mu(u,I_n)
 	for i in I_n:
 		a_sum = (i(u) - mu_u) ** 2 + a_sum
@@ -313,11 +315,11 @@ def get_latlong_points(df_sequence):
     n_locations = []
     for index, stage in df_sequence.iterrows():
         if stage.par_subida == stage.par_subida and stage.netapa == 1:
-            a.append(np.array([stage.lat_subida,stage.long_subida]))
             indice = buscar_locacion(locations,stage.par_subida)
             if indice > -1:
                 n_locations[indice] += 1
             else:
+            	a.append(np.array([stage.lat_subida,stage.long_subida]))
                 locations.append(stage.par_subida)
                 n_locations.append(1)
     la_suma = sum(n_locations)
@@ -394,8 +396,8 @@ def get_upToX_pi_locations(pi_sums,x):
 # ?
 def get_ROIs(df_sequence,x):
 	X,locations,pi_locations = get_latlong_points(df_sequence)
-	Z = linkage(X[0:len(locations),:], 'ward')
-	clusters = fcluster(Z,0.01,criterion='distance')
+	Z = linkage(X, 'ward')
+	clusters = fcluster(Z,0.02,criterion='distance')
 	centroids = []
 	nums_by_clusters =[]
 	pi_sums = []
@@ -418,6 +420,12 @@ def get_ROIs(df_sequence,x):
 	for i in the_indexs:
 	    the_centroids.append({"lat":centroids[i]["lat"]/nums_by_clusters[i],"long":centroids[i]["long"]/nums_by_clusters[i]})
 	return [the_centroids,the_sum]
+
+def get_clusters(df_sequence):
+	X,locations,pi_locations = get_latlong_points(df_sequence)
+	Z = linkage(X, 'ward')
+	clusters = fcluster(Z,0.02,criterion='distance')
+	return clusters
 
 ## Regularity
 # 33 17 .. en 33 hablan de las PRD PRI, no info
