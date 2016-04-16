@@ -32,20 +32,36 @@ def get_features(df_sequence):
 	par_subida = ""; par_bajada = ""
 	last_stop = "";	last_lat = "";last_long = "";
 	last_trip = -1; last_week_day = -1;
+	card_type = -1
 	n_days = -1 # -1 para acceder al arreglo cuando es 1(0)
+	traveled_days_bs = 0
+	traveled_days_in_between = 0
 	shortest_activities = []; longest_activities = []
 	locations = [];	location_set = ; origin_location_set = []
-	last_origins = []
+	last_origins = []; first_origins = []
+	start_times = []; end_times = []; an_end_time = None
 	pi_locations = []
+	n_trips_per_day = []
+	n_trips = 0
 	rm = np.array([0,0])
 	distance = 0; max_distance = 0; min_distance = 10.0**8; a_trip_distance = 0
 	step_counter = 0
-	# iteracion sobre las etapas	
-	
+	exclusive_bus_days = 0.0
+	bus_exclusive = False
+	exclusive_metro_days = 0.0
+	metro_exclusive = False
+	bus_counter = 0.0
+
+	# iteracion sobre las etapas
+	# TODO: check if it can be somehow faster than this
 	for stage in df_sequence.iterrows():
+		# Card Type Feature
+		if card_type == -1 and stage.card_type:
+			card_type = stage.card_type
 		par_subida = stage.par_subida
 		par_bajada = stage.par_bajada
 		#Si es un nuevo viaje debo checkear si hay nuevos indicadores
+		#Max Distance and Min Distance Feature 
 		if stage.netapa == 1:
 			if a_trip_distance > max_distance:
 				max_distance = a_trip_distance
@@ -56,13 +72,25 @@ def get_features(df_sequence):
 		#Si existe par subida puedo fijarlo como paradero de origen
 		if par_subida == par_subida:
 			if stage.weekday != last_week_day and last_week_day > -1:
-				last_origins.append(par_subida)
+				# start times and end times feature
+				start_times.append(int(auxiliar_functions.hour_to_seconds(stage.tiempo_subida)))
+				end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+				# last origin feature
+				if last_origin:
+					last_origins.append(last_origin)
+				# first origin feature
+				first_origins.append(par_subida)
+				last_origin = None
 			location_index = buscar_locacion(location_set,stage.par_subida)
+			if stage.netapa == 1:
+				last_origin = par_subida
+				an_end_time = stage.tiempo_subida
+				an_end_time = None
 			if location_index > -1:
-				if stage.netapa == 1:
-					origin_location_set.append(par_subida)
 				pi_locations[location_index] += 1
 			else:
+				if stage.netapa == 1:
+					origin_location_set.append(par_subida)
 				location_set.append(stage.par_subida)
 				pi_locations.append(1)
 			# radius of gyration
@@ -92,19 +120,44 @@ def get_features(df_sequence):
 				last_trip_stop = destinatination_stop
 				last_lat = destination_lat
 				last_long = destination_long
-		#mean shortest activity
+		#mean shortest activity 
 		weekday = stage.tiempo_subida.weekday()
 		if  weekday != last_week_day :
+			if last_week_day != -1:
+				diff = abs(weekday - last_week_day)%6
+				if diff > 1:
+					traveled_days_bs = traveled_days_in_between
+					traveled_days_in_between = 0
+				traveled_days_in_between += 1
+				n_trips_per_day.append(n_trips)
+				while(diff > 1):
+					n_trips_per_day.append(0)
+					diff -= 1
+				if bus_exclusive:
+					exclusive_bus_days += 1
+				if metro_exclusive:
+					exclusive_metro_days += 1
+			bus_exclusive = True
 			last_week_day = weekday
 			last_trip = -1
 			n_days += 1
 			shortest_activities.append(np.nan)
+			n_trips = 0
+		if stage.tipo_transporte == "METRO":
+			bus_exclusive = False
+		if stage.tipo_transporte =! "METRO":
+			metro_exclusive = False
+			bus_counter += 1
 		if stage.nviaje != last_trip :
+			n_trips += 1
+			last_trip = stage.nviaje
 			if step_counter == 0 :
-				continue
+				continue #porque lo sigue necesita la diferencia de tiempo 
 			#msal: mean shortest activity length
 			#mlal: mean longest activity length
 			time_diff = stage.diferencia_tiempo
+			#la diferencia de tiempo entre el ultimo viaje y 
+			#el nuevo viaje TODO:Fix#sobre estimado ya que considera el tiempo del ultimo viaje
 			if shortest_activities[n_days] != shortest_activities[n_days]:
 				shortest_activities[n_days] = time_diff
 				longest_activities[n_days] = time_diff
@@ -112,14 +165,30 @@ def get_features(df_sequence):
 				shortest_activities[n_days] = time_diff
 			if longest_activities[n_days] < time_diff:
 				longest_activities[n_days] = time_diff
+		step_counter += 1
 	# capturar datos sobre el ultimo viaje
 	if a_trip_distance > max_distance:
 		max_distance = a_trip_distance
-	if par_subida == par_subida and par_subida != "":
+	if last_origin:
 		last_origins.append(last_origin)
+	if bus_exclusive:
+		exclusive_bus_days += 1
+	if metro_exclusive:		
+		exclusive_metro_days += 1
+	p100_exclusive_bus_days = exclusive_bus_days/traveled_days*100
+	p100_exclusive_metro_days = exclusive_metro_days/traveled_days*100
+	P100_bus_trips = bus_counter/step_counter*100
 	# percentage different last origins
-	origin_set = list(set(last_origins))
-	p100_diff_last_origin = len(origin_set)*1.0/len(last_origins)*100
+	last_origin_set = set(last_origins)
+	p100_diff_last_origin = len(last_origin_set)*1.0/len(last_origins)*100
+	first_origin_set = set(first_origins)
+	p100_diff_first_origin = len(first_origin_set)*1.0/len(first_origins)*100
+	# start times
+	start_time = int(np.mean(start_times))
+	if an_end_time:
+		end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+	end_time = int(np.mean(end_times))
+	traveled_days_bs = traveled_days_in_between if traveled_days_bs == 0 else traveled_days_bs
 	#obtener probabilidad de estar en cada locacion 
 	pi_suma = sum(pi_locations)
 	pi_locations[:] = [x*1.0/pi_suma for x in pi_locations]
@@ -141,12 +210,19 @@ def get_features(df_sequence):
 	kmDistance = distance/1000
 	kmMaxDist = max_distance/1000
 	kmMinDist = min_distance/1000
-	return [msal,mlal,kmDistance,kmMaxDist,kmMinDist,rg,unc_entropy,random_entropy,p100_diff_last_origin]
+	card_type = int(card_type) if card_type else None
+	traveled_days = n_days + 1 #n_days parte de 0
+	n_trips_per_day.append(n_trips) # se entrega???
+	frequence_regularity = stats.mode(n_trips_per_day).count[0]
+	return [msal,mlal,kmDistance,kmMaxDist,kmMinDist,rg,unc_entropy, \
+	random_entropy,p100_diff_last_origin,p100_diff_first_origin,card_type,\
+	start_time,end_time,traveled_days,traveled_days_bs,frequence_regularity\
+	p100_exclusive_bus_days,p100_exclusive_metro_days,P100_bus_trips]
 ### Activity Features
 
 ## Activity length 
 	
-# 30
+# 30 
 # get_mean_shortests_activity_length: pandas.DataFrame -> Timedelta
 # entrega el promedio semanal de la actividad mas corta de cada dia
 # el tiempo de una actividad corresponde a la diferencia de tiempo entre dos viajes
@@ -168,6 +244,7 @@ def get_mean_shortests_activity_length(df_sequence):
 			time_diff = stage.diferencia_tiempo
 			if shortest_activities[n_days] != shortest_activities[n_days] or shortest_activities[n_days] > time_diff :
 				shortest_activities[n_days] = time_diff
+			last_trip = stage.nviaje
 
 	return np.mean(shortest_activities)
 
@@ -192,6 +269,7 @@ def get_mean_longest_activity_length(df_sequence):
 		if stage.nviaje != last_trip :
 			if longest_activities[activities_counter] != longest_activities[activities_counter] or longest_activities[activities_counter] < stage.diferencia_tiempo :
 				longest_activities[activities_counter] = stage.diferencia_tiempo
+			last_trip = stage.nviaje
 
 	return np.mean(longest_activities)
 
@@ -483,9 +561,10 @@ def get_percentage_different_last_origin(df_sequence):
 	last_origin = ""
 	for index, stage in df_sequence.iterrows():
 		if stage.weekday != last_weekday and last_weekday > -1:
-			last_origins.append(stage.par_subida)
-		last_weekday = stage.weekday
-		last_origin = stage.par_subida
+			last_origins.append(last_origin)
+		if stage.netapa == 1:
+			last_weekday = stage.weekday
+			last_origin = stage.par_subida
 	last_origins.append(last_origin)
 	the_set = list(set(last_origins))
 	return len(the_set)*1.0/len(last_origins)*100
@@ -496,8 +575,9 @@ def get_percentage_different_first_origin(df_sequence):
 	last_weekday = -1
 	for index, stage in df_sequence.iterrows():
 		if stage.weekday != last_weekday:
-			first_origins.append(stage.par_subida)
-		last_weekday = stage.weekday
+			if stage.netapa == 1:
+				first_origins.append(stage.par_subida)
+				last_weekday = stage.weekday
 	the_set = list(set(first_origins))
 	return len(the_set)*1.0/len(first_origins)*100
 
@@ -569,6 +649,7 @@ def get_n_similar_start_times():
 	return 0
 # 30
 # funciona muy mal cuando es irregular
+# no esta bien
 def get_mean_start_time_first_trip(df_sequence):
 	start_times = []
 	last_weekday = -1
@@ -689,8 +770,8 @@ def get_percentage_bus_exclusive_days(df_sequence):
 # Considera etapas
 def get_percentage_rail_exclusive_days(df_sequence):
 	traveled_days = -1.0
-	exclusive_metro_days = 0.0
 	last_weekday = -1
+	exclusive_metro_days = 0.0
 	metro_exclusive = False
 	for index, stage in df_sequence.iterrows():
 		if stage.weekday != last_weekday:
