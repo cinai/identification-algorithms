@@ -75,6 +75,12 @@ def frame_config(frame):
 def hour_to_seconds(an_hour):
     return int(an_hour.hour*3600 + an_hour.minute *60 + an_hour.second)
 
+def td_to_minutes(a_td):
+    seconds = a_td.seconds
+    days = a_td.days
+    total_seconds = days*3600 + seconds
+    return int(total_seconds*1.0/60)
+
 def seconds_to_hour(a_lot_of_seconds):
     hour = int(a_lot_of_seconds/3600)
     minute = int((a_lot_of_seconds - hour * 3600)/60)
