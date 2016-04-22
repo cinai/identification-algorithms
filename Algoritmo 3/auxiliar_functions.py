@@ -64,7 +64,7 @@ def frame_config(frame):
     frame = frame.apply(update_vals, axis=1)
     frame['weekday'] = frame.tiempo_subida.dt.dayofweek
     frame['lat_subida'] = frame.apply(add_vals,args=('lat','par_subida'),axis=1)
-    frame['lat_bajada'] = frame.apply(add_vals,args=('lat','par_subida'),axis=1)
+    frame['lat_bajada'] = frame.apply(add_vals,args=('lat','par_bajada'),axis=1)
     frame['long_subida'] = frame.apply(add_vals,args=('long','par_subida'),axis=1)
     frame['long_bajada'] = frame.apply(add_vals,args=('long','par_bajada'),axis=1)
     frame = frame.sort_values(by=['id', 'tiempo_subida'])

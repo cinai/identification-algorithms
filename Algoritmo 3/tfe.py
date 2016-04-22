@@ -35,10 +35,10 @@ def get_mean_shortest_activity_length(df_sequence):
 			n_days += 1
 			shortest_activities.append(np.nan)
 		if stage.netapa == 1 and stage.nviaje != 1:
-			time_diff = stage.diferencia_tiempo
+			time_diff = auxiliar_functions.td_to_minutes(stage.diferencia_tiempo)
 			if shortest_activities[n_days] != shortest_activities[n_days] or shortest_activities[n_days] > time_diff :
 				shortest_activities[n_days] = time_diff
-	return auxiliar_functions.td_to_minutes(np.mean(shortest_activities))
+	return np.mean(shortest_activities)
 
 # 30
 # get_mean_longest_activity_length: pandas.DataFrame -> Timedelta
@@ -57,10 +57,11 @@ def get_mean_longest_activity_length(df_sequence):
 			activities_counter += 1
 			longest_activities.append(np.nan)
 		if stage.netapa == 1 and stage.nviaje != 1 :
-			if longest_activities[activities_counter] != longest_activities[activities_counter] or longest_activities[activities_counter] < stage.diferencia_tiempo :
-				longest_activities[activities_counter] = stage.diferencia_tiempo
+			time_diff = auxiliar_functions.td_to_minutes(stage.diferencia_tiempo)
+			if longest_activities[activities_counter] != longest_activities[activities_counter] or longest_activities[activities_counter] < time_diff :
+				longest_activities[activities_counter] = time_diff
 
-	return auxiliar_functions.td_to_minutes((np.nanmean(longest_activities)))
+	return np.nanmean(longest_activities)
 
 def get_chronology(df_sequence,lat,llong):
 	Cvl = []
@@ -354,17 +355,19 @@ def get_n_different_locations(df_sequence):
 def get_percentage_different_last_origin(df_sequence):
 	last_origins = []
 	last_weekday = -1
-	last_origin = ""
+	last_origin = None
 	for index, stage in df_sequence.iterrows():
-		if stage.weekday != last_weekday and last_weekday > -1:
-			last_origins.append(last_origin)
-			last_origin = None
-		last_weekday = stage.weekday
+		if stage.weekday != last_weekday:
+			if last_weekday > -1:
+				if last_origin:
+					last_origins.append(last_origin)
+				last_origin = None
+			last_weekday = stage.weekday
 		if stage.netapa == 1:
 			last_origin = stage.par_subida
 	if last_origin :
 		last_origins.append(last_origin)
-	the_set = list(set(last_origins))
+	the_set = set(last_origins)
 	return len(the_set)*1.0/len(last_origins)*100
 
 # 30 
@@ -375,7 +378,7 @@ def get_percentage_different_first_origin(df_sequence):
 		if stage.weekday != last_weekday:
 			if stage.par_subida == stage.par_subida:
 				first_origins.append(stage.par_subida)
-		last_weekday = stage.weekday
+			last_weekday = stage.weekday
 	the_set = set(first_origins)
 	return len(the_set)*1.0/len(first_origins)*100
 
@@ -393,6 +396,10 @@ def get_upToX_pi_locations(pi_sums,x):
 # ?
 def get_ROIs(df_sequence,x):
 	X,locations,pi_locations = get_latlong_points(df_sequence)
+	if len(locations) == 1:
+		return [[{"lat":X[0,0],"long":X[0,1]}],1.0]
+	elif len(locations) < 1:
+		return None
 	Z = linkage(X, 'ward')
 	clusters = fcluster(Z,0.02,criterion='distance')
 	centroids = []
@@ -463,7 +470,9 @@ def get_mean_start_time_last_trip(df_sequence):
 	an_end_time = 0
 	for index, stage in df_sequence.iterrows():
 		if stage.weekday != last_weekday and last_weekday > -1:
-			end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+			if an_end_time:
+				end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+				an_end_time = None
 		if stage.netapa == 1:
 			an_end_time = stage.tiempo_subida
 		last_weekday = stage.weekday
