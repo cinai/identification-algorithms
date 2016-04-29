@@ -2,6 +2,7 @@
 import csv
 import numpy as np
 import pandas as pd
+from geopy.distance import vincenty
 from dict_stops import *
 
 path_subway_dictionary = '/home/cata/Documentos/Datois/Diccionario-EstacionesMetro.csv'
@@ -87,3 +88,15 @@ def seconds_to_hour(a_lot_of_seconds):
     second = a_lot_of_seconds - hour * 3600 - minute * 60
     return str(hour)+":"+str(minute)+":"+str(second) 
 
+def share_rois(rois_a,rois_b):
+    for i in range(len(rois_a)):
+        an_a_roi = rois_a[i]
+        lat_a_roi = an_a_roi['lat']
+        long_a_roi = an_a_roi['long']
+        for j in range(len(rois_b)):
+            an_b_roi = rois_b[j]
+            lat_b_roi = an_b_roi['lat']
+            long_b_roi = an_b_roi['long']
+            if vincenty((lat_a_roi,long_a_roi),(lat_b_roi,long_b_roi)).meters < 500:
+                return True
+    return False

@@ -98,7 +98,7 @@ def min_max(Us,u):
 	for i in Us:
 		if i >= u:
 			return i - Us[counter-1]
-	 	counter += 1
+		counter += 1
 
 def In(Us,w):
 	return lambda u: Us[0] if u>0 and u <= Us[0] else w-Us[len(Us)-1] if u>Us[len(Us)-1]and u<= w else min_max(Us,u)
@@ -304,21 +304,22 @@ def get_unc_entropy(df_sequence):
 	return -la_suma
 
 def get_latlong_points(df_sequence):
-    a = []
-    locations = []
-    n_locations = []
-    for index, stage in df_sequence.iterrows():
-        if stage.par_subida == stage.par_subida and stage.netapa == 1:
-            indice = buscar_locacion(locations,stage.par_subida)
-            if indice > -1:
-                n_locations[indice] += 1
-            else:
-            	a.append(np.array([stage.lat_subida,stage.long_subida]))
-                locations.append(stage.par_subida)
-                n_locations.append(1)
-    la_suma = sum(n_locations)
-    n_locations[:] = [x*1.0/la_suma for x in n_locations]
-    return [np.asarray(a),locations,n_locations]
+	a = []
+	locations = []
+	n_locations = []
+	for index, stage in df_sequence.iterrows():
+		if stage.par_subida == stage.par_subida and stage.netapa == 1:
+			if stage.lat_subida == stage.lat_subida and stage.long_subida == stage.long_subida:
+				indice = buscar_locacion(locations,stage.par_subida)
+				if indice > -1:
+					n_locations[indice] += 1
+				else:
+					a.append(np.array([stage.lat_subida,stage.long_subida]))
+					locations.append(stage.par_subida)
+					n_locations.append(1)
+	la_suma = sum(n_locations)
+	n_locations[:] = [x*1.0/la_suma for x in n_locations]
+	return [np.asarray(a),locations,n_locations]
 
 def get_pi_locations(df_sequence):
 	locations = []
@@ -383,16 +384,16 @@ def get_percentage_different_first_origin(df_sequence):
 	return len(the_set)*1.0/len(first_origins)*100
 
 def get_upToX_pi_locations(pi_sums,x):
-    the_indexs = []
-    the_sum = 0
-    while True:
-        if the_sum >= x:
-            break
-        index = pi_sums.argmax()
-        the_indexs.append(index)
-        the_sum = the_sum + pi_sums[index]
-        pi_sums[index] = 0
-    return [the_indexs,the_sum]
+	the_indexs = []
+	the_sum = 0
+	while True:
+		if the_sum >= x:
+			break
+		index = pi_sums.argmax()
+		the_indexs.append(index)
+		the_sum = the_sum + pi_sums[index]
+		pi_sums[index] = 0
+	return [the_indexs,the_sum]
 # ?
 def get_ROIs(df_sequence,x):
 	X,locations,pi_locations = get_latlong_points(df_sequence)
@@ -400,29 +401,29 @@ def get_ROIs(df_sequence,x):
 		return [[{"lat":X[0,0],"long":X[0,1]}],1.0]
 	elif len(locations) < 1:
 		return None
-	Z = linkage(X, 'ward')
-	clusters = fcluster(Z,0.02,criterion='distance')
+	Z = linkage(X,'weighted',lambda x,y: vincenty(x,y).meters)
+	clusters = fcluster(Z,500,criterion='distance')
 	centroids = []
 	nums_by_clusters =[]
 	pi_sums = []
 	the_clusters = []
 	for i in range(len(clusters)):
-	    indice = buscar_locacion(the_clusters,clusters[i])
-	    if indice < 0:
-	        the_clusters.append(clusters[i])
-	        indice = len(the_clusters)-1
-	        pi_sums.append(0)
-	        nums_by_clusters.append(0)
-	        centroids.append({"lat":0,"long":0})
-	    pi_sums[indice] += pi_locations[i]
-	    centroids[indice]["lat"] += X[i,0]
-	    centroids[indice]["long"] += X[i,1]
-	    nums_by_clusters[indice] += 1
+		indice = buscar_locacion(the_clusters,clusters[i])
+		if indice < 0:
+			the_clusters.append(clusters[i])
+			indice = len(the_clusters)-1
+			pi_sums.append(0)
+			nums_by_clusters.append(0)
+			centroids.append({"lat":0,"long":0})
+		pi_sums[indice] += pi_locations[i]
+		centroids[indice]["lat"] += X[i,0]
+		centroids[indice]["long"] += X[i,1]
+		nums_by_clusters[indice] += 1
 
 	the_indexs, the_sum = get_upToX_pi_locations(np.asarray(pi_sums),x)
 	the_centroids = []
 	for i in the_indexs:
-	    the_centroids.append({"lat":centroids[i]["lat"]/nums_by_clusters[i],"long":centroids[i]["long"]/nums_by_clusters[i]})
+		the_centroids.append({"lat":centroids[i]["lat"]/nums_by_clusters[i],"long":centroids[i]["long"]/nums_by_clusters[i]})
 	return [the_centroids,the_sum]
 
 def get_clusters(df_sequence):
@@ -606,4 +607,4 @@ def get_percentage_bus_trips(df_sequence):
 		if stage.tipo_transporte != "METRO":
 			bus_counter += 1
 	return bus_counter/len(df_sequence)*100
-    
+	
