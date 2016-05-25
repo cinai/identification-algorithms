@@ -33,6 +33,25 @@ def compare_vectors_with_neighbours_normalized(vector_a,vector_b,rois_a,rois_b,s
     print delta_time
     return a_matrix
 
+def compare_vectors_with_neighbours_normalized_without_opt(vector_a,vector_b,rois_a,rois_b,shared_rois,limit,min_shared,f_dist):
+    a_matrix = np.ones((limit, limit)) * -1
+    init_time = time.time()
+    for i in range(limit):
+        #print "Usuario ",i
+        rois_abril = rois_a[i]
+        neighbours = get_neighbours_index(rois_abril,shared_rois,i,min_shared)
+        if len(neighbours) > 0:
+            a_sequence = vector_a[i,:]
+            b_sequences = vector_b[neighbours,:]
+            ab_sequences = np.vstack((a_sequence,b_sequences))
+            counter = 0
+            for neighbour in neighbours:
+                dist = f_dist(np.asarray(ab_sequences[0,:]),np.asarray(ab_sequences[counter+1,:]))
+                a_matrix[i,neighbour] = -dist
+                counter += 1
+    delta_time = time.time() - init_time
+    print delta_time
+    return a_matrix
 
 def get_n_correct(a_matrix,limit):
     identified_indexs = [] #almacena los indices de que secuencia fue seleccionada como match
