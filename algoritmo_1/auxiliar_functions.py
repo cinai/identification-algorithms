@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import csv
 
 path_subway_dictionary = '/home/cata/Documentos/Datois/Diccionario-EstacionesMetro.csv'
 path_csv_sequences = '/home/cata/Documentos/sequences/'

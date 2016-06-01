@@ -43,24 +43,30 @@ def buscar_locacion(mls,location):
 #												'tpm':[[int]], 'nvisitas': int}]
 def get_profiles(ids, par_subidas, par_bajadas):
 	# se inicializan las variables con los valores de la primera transaccion
-	last_id = ids[0]
-	last_stop = par_subidas[0]
-	last_stop_index = 0
 	matrix_size = 30
-	tpm = np.zeros((matrix_size,matrix_size)) # Transition Probability Matrix (TPM)
-	mls = [par_subidas[0]] # minimum location set (mlt)
-	nvisitas = [0] # diccionario contador de visitas a cada locación
 	users_profiles= [] # arreglo de diccionarios
-
+	First = True
+	last_id = -1
+	mls = []
+	tpm = []
+	nvisitas = []
 	for transaction in zip(ids,par_subidas,par_bajadas):
 		user_id = transaction[0]
 		par_subida = transaction[1]
 		par_bajada = transaction[2]
 		# no se pierde el paradero de bajada, porque cuando no hay subida no se puede estimar la bajada
 		if (par_subida!=par_subida):
-			continue        
+			continue 
+		if First:
+			last_id = user_id
+			tpm = np.zeros((matrix_size,matrix_size))
+			mls = [par_subida]
+			last_stop = par_subida
+			last_stop_index = 0
+			nvisitas = [0]
+			First = False
 		# guardar perfil y construir nueva TPM y mls no vacia para que no se caiga
-		if (user_id!=last_id):
+		if user_id!=last_id:
 			users_profiles.append(create_profile(last_id,mls,nvisitas,tpm))
 			last_id = user_id
 			tpm = np.zeros((matrix_size,matrix_size))
@@ -127,6 +133,8 @@ def get_profiles(ids, par_subidas, par_bajadas):
 					if(index_bajada!=index_subida):
 						nvisitas[index_bajada] = nvisitas[index_bajada]+1
 						tpm[index_subida,index_bajada] +=1
+	#agrego el ultimo perfil
+	users_profiles.append(create_profile(last_id,mls,nvisitas,tpm))
 
 	return users_profiles
 
@@ -143,30 +151,36 @@ def create_sequence(id_user, mls, nvisitas, sequence):
 #												'sequence':[string], 'nvisitas': int}]
 def get_sequences(ids, par_subidas, par_bajadas):
 	# se inicializan las variables con los valores de la primera transaccion
-	last_id = ids[0]
-	last_stop = par_subidas[0]
-	last_stop_index = 0
-	matrix_size = 30
-	tpm = np.zeros((matrix_size,matrix_size)) # Transition Probability Matrix (TPM)
-	mls = [par_subidas[0]] # minimum location set (mlt)
-	nvisitas = [0] # diccionario contador de visitas a cada locación
 	profiles= [] # arreglo de diccionarios
-	sequence = [par_subidas[0]]
-
+	First = True
+	# inicializo para despues usarlas
+	last_id = -22
+	mls = []
+	nvisitas = []
+	sequence = []
 	for transaction in zip(ids,par_subidas,par_bajadas):
 		id_user = transaction[0]
 		par_subida = transaction[1]
 		par_bajada = transaction[2]
 		if (par_subida!=par_subida):
-			continue        
-		if (id_user!=last_id):
-			profiles.append(create_sequence(id_user,mls,nvisitas,sequence))
+			continue 
+		if First:
 			last_id = id_user
 			mls = [par_subida]
 			sequence = [par_subida]
 			last_stop = par_subida
 			nvisitas = [0]
 			counter = 1
+			First = False
+		if id_user!=last_id:       
+			profiles.append(create_sequence(last_id,mls,nvisitas,sequence))
+			last_id = id_user
+			mls = [par_subida]
+			sequence = [par_subida]
+			last_stop = par_subida
+			nvisitas = [0]
+			counter = 1
+			
 		index_subida = buscar_locacion(mls,par_subida)
 		# si la subida no había sido visitada se debe agregar al mls
 		if (index_subida < 0):
@@ -211,6 +225,7 @@ def get_sequences(ids, par_subidas, par_bajadas):
 				# subida y bajada estaban de antes
 				else:
 					nvisitas[index_bajada] = nvisitas[index_bajada]+1
+	profiles.append(create_sequence(last_id,mls,nvisitas,sequence))
 
 	return profiles
 
