@@ -1,4 +1,31 @@
+# -*- coding: utf-8 -*-
 #Edit distance identification
+import time
+import datetime as dt
+import pickle
+import numpy as np
+import random
+import scipy as sp
+from dict_stops import *
+import pandas as pd
+import os
+import csv
+
+if os.name == 'nt':
+    path_subway_dictionary = 'C:\Users\catalina\Documents\Datois\Diccionario-EstacionesMetro.csv'
+    path_csv_sequences = 'C:\Users\catalina\Documents\sequences\\'
+else:
+    path_subway_dictionary = '/home/cata/Documentos/Datois/Diccionario-EstacionesMetro.csv'
+    path_csv_sequences = '/home/cata/Documentos/sequences/'
+
+# Función que carga las estaciones de metro
+# en un diccionario
+def load_metro_dictionary():
+    dict_metro = {}
+    with open(path_subway_dictionary,mode='r') as infile:
+        reader = csv.reader(infile,delimiter=';')
+        dict_metro = {rows[5]:rows[7] for rows in reader}
+    return dict_metro
 
 def cost(a_tuple):
 	return a_tuple
@@ -18,9 +45,22 @@ def delete(sequence,i,c):
 	spatial_distance = lat_distance + long_distance
 	return ((1-c)*spatial_distance+c*temporal_distance)**0.5
 
-def insert(sequence,i,c):
-	return 0 
-	
+def insert(sequence,pi,c):
+	n = len(sequence)
+	sum_lat = 0
+	sum_long = 0
+	sum_temp = 0
+	for seq in sequence:
+		sum_lat += seq[0]
+		sum_long += seq[1]
+		sum_temp += seq[2]
+	lat_distance = (sum_lat/n-(sum_lat+(n*pi[0]))/(n+1))**2
+	long_distance = (sum_long/n-(sum_long+(n*pi[0]))/(n+1))**2
+	temporal_distance = (sum_temp/n-(sum_temp+(n*pi[0]))/(n+1))**2
+	spatial_distance = lat_distance + long_distance
+	return ((1-c)*spatial_distance+c*temporal_distance)**0.5
+	 
+
 #sequence_a: S(s1,....sn)
 #sequence_b: T(t1,....tn)
 def get_edit_distance(sequence_a,sequence_b,i,j):
@@ -35,6 +75,145 @@ def get_edit_distance(sequence_a,sequence_b,i,j):
 
 	return min(d1,d2,d3)
 
-def get_sequence(tiempos,par_subidas,par_bajadas):
-	#parecido al de tpm pero 
-	return []
+# Función que estandariza los valores de los paraderos de subida 
+# y bajada
+def update_vals(row,data = load_metro_dictionary()):
+    if row.par_subida in data:
+        row.par_subida = data[row.par_subida]
+    if row.par_bajada in data:
+        row.par_bajada = data[row.par_bajada]
+    return row
+
+# Función que estandariza los valores de los paraderos de subida 
+# y bajada
+def add_vals(row,latlong,paradero,data = dict_latlong_stops):
+    stop_name = row[paradero]
+    if stop_name in data:
+        return data[stop_name][latlong]
+    else :
+        return np.nan
+
+def frame_config(frame):
+    frame['tiempo_subida'] = pd.to_datetime(frame.tiempo_subida)
+    frame['tiempo_bajada'] = pd.to_datetime(frame.tiempo_bajada)
+    frame = frame.apply(update_vals, axis=1)
+    frame['weekday'] = frame.tiempo_subida.dt.dayofweek
+    frame['lat_subida'] = frame.apply(add_vals,args=('lat','par_subida'),axis=1)
+    frame['lat_bajada'] = frame.apply(add_vals,args=('lat','par_bajada'),axis=1)
+    frame['long_subida'] = frame.apply(add_vals,args=('long','par_subida'),axis=1)
+    frame['long_bajada'] = frame.apply(add_vals,args=('long','par_bajada'),axis=1)
+    frame = frame.sort_values(by=['id', 'tiempo_subida'])
+    frame['diferencia_tiempo'] = (frame['tiempo_subida']-frame['tiempo_subida'].shift()).fillna(0)
+    return frame
+
+def hour_to_seconds(an_hour):
+    return int(an_hour.hour*3600 + an_hour.minute *60 + an_hour.second)
+
+def buscar_locacion(mls,location):
+	try:
+		index_location = mls.index(location)
+	except ValueError:
+		index_location = -1
+	return index_location
+
+def create_sequence(id_user, mls, nvisitas, sequence):
+	profile = {'user_id':id_user,'mls':mls,'nvisitas':nvisitas,'sequence':sequence}
+	return profile
+
+def get_sequences(ids,lat_subidas,long_subidas,t_subidas,lat_bajadas,long_bajadas,t_bajadas):
+    # se inicializan las variables con los valores de la primera transaccion
+    profiles= [] # arreglo de diccionarios
+    First = True
+    # inicializo para despues usarlas
+    last_id = -22
+    mls = []
+    nvisitas = []
+    sequence = []
+    times = []
+    counter = 0
+    for transaction in zip(ids,lat_subidas,long_subidas,t_subidas,lat_bajadas,long_bajadas,t_bajadas):
+        id_user = transaction[0]
+        lat_subida = transaction[1]
+        long_subida = transaction[2]
+        t_subida = transaction[3]
+        lat_bajada = transaction[4]
+        long_bajada = transaction[5]
+        t_bajada = transaction[6]
+        counter += 1
+        if (lat_subida!=lat_subida or t_subida != t_subida):
+            continue 
+        par_subida = (lat_subida,long_subida)
+        par_bajada = (lat_bajada,long_bajada)
+        subida_3 = (lat_subida,long_subida,hour_to_seconds(t_subida))
+        if First:
+            last_id = id_user
+            mls = [par_subida]
+            sequence = [subida_3]
+            last_stop = par_subida
+            times.append(hour_to_seconds(t_subida))
+            nvisitas = [0]
+            counter = 1
+            First = False
+        if id_user!=last_id:       
+            profiles.append(create_sequence(last_id,mls,nvisitas,sequence))
+            last_id = id_user
+            mls = [par_subida]
+            sequence = [subida_3]
+            last_stop = par_subida
+            nvisitas = [0]
+            counter = 1
+
+        index_subida = buscar_locacion(mls,par_subida)
+        # si la subida no había sido visitada se debe agregar al mls
+        if (index_subida < 0):
+            mls.append(par_subida)
+            nvisitas.append(1)
+            index_subida = len(mls) - 1
+            sequence.append(subida_3)
+            times.append(hour_to_seconds(t_subida))
+            # si la bajada no se pudo calcular solo se considera la subida y se deja para calcular tpm en la proxima ronda 
+            if (lat_bajada!=lat_bajada or t_bajada != t_bajada):
+                last_stop = par_subida
+                #print "Iteración n°: " + str(counter) + " , no se pudo estimar la bajada"
+            else:
+                bajada_3 = (lat_bajada,long_bajada,hour_to_seconds(t_bajada))
+                last_stop = par_bajada
+                sequence.append(bajada_3)
+                times.append(hour_to_seconds(t_bajada))
+                index_bajada = buscar_locacion(mls,par_bajada)
+                # si la bajada no se había visitado antes, agregar bajada y sumar nvisitas 
+                if (index_bajada < 0):
+                    mls.append(par_bajada)
+                    index_bajada = len(mls)-1
+                    nvisitas.append(1)
+                # sumar nvisita 
+                else:
+                    nvisitas[index_bajada] = nvisitas[index_bajada]+1
+        else:
+            nvisitas[index_subida] = nvisitas[index_subida]+1
+            
+            if(par_subida!=last_stop):
+                sequence.append(subida_3)
+                times.append(hour_to_seconds(t_subida))
+            # subida estaba de antes y no hay bajada
+            # REVISAR SI ESTO NO ES REDUNDANTE!
+            if (lat_bajada!=lat_bajada or t_bajada!=t_bajada):
+                last_stop = par_subida
+            # hay subida y bajada
+            else:
+                bajada_3 = (lat_bajada,long_bajada,hour_to_seconds(t_bajada))
+                sequence.append(bajada_3)
+                times.append(hour_to_seconds(t_bajada))
+                last_stop = par_bajada
+                index_bajada = buscar_locacion(mls,par_bajada)
+                # hay bajada pero no estaba antes
+                if (index_bajada<0):
+                    mls.append(par_bajada)
+                    index_bajada = len(mls) - 1
+                    nvisitas.append(1)
+                # subida y bajada estaban de antes
+                else:
+                    nvisitas[index_bajada] = nvisitas[index_bajada]+1
+    profiles.append(create_sequence(last_id,mls,nvisitas,sequence))
+
+    return profiles
