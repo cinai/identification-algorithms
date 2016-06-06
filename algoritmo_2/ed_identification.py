@@ -60,20 +60,47 @@ def insert(sequence,pi,c):
 	spatial_distance = lat_distance + long_distance
 	return ((1-c)*spatial_distance+c*temporal_distance)**0.5
 	 
+def replace(sequence,pi,pj,c):
+	n = len(sequence)
+	sum_lat = 0
+	sum_long = 0
+	sum_temp = 0
+	sum_lat_plus_pj = 0
+	sum_long_plus_pj = 0
+	sum_temp_plus_pj = 0
+	for seq in sequence:
+		sum_lat += seq[0]
+		sum_long += seq[1]
+		sum_temp += seq[2]
+		sum_lat_plus_pj += seq[0] +pj[0]
+		sum_long_plus_pj += seq[1] +pj[1]
+		sum_temp_plus_pj += seq[2] +pj[2]
+	sum_lat_plus_pj -= pi[0] +pj[0]
+	sum_long_plus_pj -= pi[1] +pj[1]
+	sum_temp_plus_pj -= pi[2] +pj[2]
+	lat_distance = (sum_lat/n-(sum_lat+sum_lat_plus_pj)/n)/n**2
+	long_distance = (sum_long/n-(sum_long+sum_long_plus_pj)/n)**2
+	temporal_distance = (sum_temp/n-(sum_temp+sum_temp_plus_pj)/n)**2
+	spatial_distance = lat_distance + long_distance
+	return ((1-c)*spatial_distance+c*temporal_distance)**0.5
 
 #sequence_a: S(s1,....sn)
 #sequence_b: T(t1,....tn)
-def get_edit_distance(sequence_a,sequence_b,i,j):
+def get_edit_distance(sequence_a,sequence_b,i,j,c):
 	#3 casos
-
+    if len(sequence_a) == 0:
+        return 0
+    if i>=j:
+        return 0
 	#s_i deleted and s1,.....,s_i-1 is transformed to t1,....,tj
-	d1 = get_edit_distance(sequence_a,sequence_b,i-1,j) + cost(delete(sequence_a,i))
+	d1 = get_edit_distance(sequence_a[0:len(sequence_a)-1],sequence_b,i-1,j,c) + cost(delete(sequence_a,i,c))
 	#s1,....si is transformed into t1,....,t_j-1 and we insert t_j at the end
-	d2 = get_edit_distance(sequence_a,sequence_b,i,j-1) + cost(insert(sequence_b,j))
+	d2 = get_edit_distance(sequence_a,sequence_b,i,j-1,c) + cost(insert(sequence_b[0:len(sequence_b)-1],sequence_b[j],c))
 	#s_i is changed into tj and the rest s1,....,s_i-1 is transformed to t1,....,t_j-1
-	d3 = get_edit_distance(sequence_a,sequence_b,i-1,j-1) + cost(replace(sequence_a,sequence_b,i,j))
-
-	return min(d1,d2,d3)
+	d3 = get_edit_distance(sequence_a[0:len(sequence_a)-1].append(sequence_b[j]),sequence_b,i-1,j-1,c) + cost(replace(sequence_a,sequence_b,sequence_a[i],sequence_b[j],c))
+    
+    assert type(d1)==float and type(d2)==float and type(d3)==float
+    return min(d1,d2,d3)
 
 # Función que estandariza los valores de los paraderos de subida 
 # y bajada
