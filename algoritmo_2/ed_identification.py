@@ -244,3 +244,44 @@ def get_sequences(ids,lat_subidas,long_subidas,t_subidas,lat_bajadas,long_bajada
     profiles.append(create_sequence(last_id,mls,nvisitas,sequence))
 
     return profiles
+
+# Funcion que compara la similitud entre un perfil y una secuencia de transacciones
+# Se normaliza el calculo según el largo de la secuencia
+# get_simliarity: [[int]] [string] [string] int int-> int 
+def get_similarity(sequence_a,sequence_b):
+	length_sequence_a = len(sequence_a)
+	length_sequence_b = len(sequence_b)
+    D = np.zeros((length_sequence_a+1,length_sequence_b+1))
+    for i in range(length_sequence_a):
+	    D[i+1,0] = D[i,0] + delete(sequence_a,i,c)
+	for j in range(length_sequence_b):
+	    D[0,j+1] = D[0,j] + insert(sequence_a,sequence_b[j],c)
+	for i in range(1,length_sequence_a+1):
+	    for j in range(1,length_sequence_b+1):
+	        m1 = D[i-1,j-1] + replace(sequence_a,sequence_a[i-1],sequence_b[j-1],c)
+	        m2 = D[i-1,j] + delete(sequence_a,i-1,c)
+	        m3 = D[i,j-1] + insert(sequence_a,sequence_b[j-1],c)
+	        D[i,j] = min(m1,m2,m3)
+
+    return D[length_sequence_a,length_sequence_b]
+
+# Funcion que construye la matriz de identificacion en que cada indice corresponde
+# a la similitud entre la i-esima tpm y la j-esima secuencia, obtenidas a partir de un
+# perfil de usuario y un periodo de identificacion.
+# len(users_profiles) == len(users_sequences)
+# asume que los usuarios de users_profiles y users_sequences son los mismos
+# get_identification_matrix; get_profiles(...) get_sequences(...) -> [[int]]
+def get_identification_matrix(profiles):
+	i = 0
+	j = 0
+	limit = len(profiles)
+	identification_matrix = np.zeros((limit,limit))
+	for profile_i in profiles:
+		sequence_a = profile_i['sequence']
+		j=0
+		for profile_j in profiles:
+			sequence_b = profile_j['sequence']
+			identification_matrix[i,j] = get_similarity(sequence_a,sequence_b)
+			j += 1
+		i += 1
+	return identification_matrix
