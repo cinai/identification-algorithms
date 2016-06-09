@@ -7,6 +7,7 @@ import numpy as np
 import random
 import scipy as sp
 from dict_stops import *
+from geopy.distance import vincenty
 import pandas as pd
 import os
 import csv
@@ -30,6 +31,20 @@ def load_metro_dictionary():
 def cost(a_tuple):
 	return a_tuple
 
+def delete_meters(sequence,i,c,sum_lat=0,sum_long=0,sum_temp=0):
+	n = len(sequence)
+    if sum_lat == 0:
+        for seq in sequence:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+
+    original_centroid = (sum_lat/n,sum_long/n)
+    modified_centroid = ((sum_lat-sequence[i][0])/(n-1),(sum_long-sequence[i][1])/(n-1))
+    temporal_distance = (sum_temp/n-(sum_temp-sequence[i][2])/(n-1))**2
+    spatial_distance = vincenty(original_centroid,modified_centroid).meters **2
+    return ((1-c)*spatial_distance+c*temporal_distance)**0.5
+
 def delete(sequence,i,c,sum_lat=0,sum_long=0,sum_temp=0):
     n = len(sequence)
     if sum_lat == 0:
@@ -41,6 +56,19 @@ def delete(sequence,i,c,sum_lat=0,sum_long=0,sum_temp=0):
     long_distance = (sum_long/n-(sum_long-sequence[i][1])/(n-1))**2
     temporal_distance = (sum_temp/n-(sum_temp-sequence[i][2])/(n-1))**2
     spatial_distance = lat_distance + long_distance
+    return ((1-c)*spatial_distance+c*temporal_distance)**0.5
+
+def insert_meters(sequence,pi,c,sum_lat=0,sum_long=0,sum_temp=0):
+	n = len(sequence)
+    if sum_lat == 0:
+        for seq in sequence:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+    original_centroid = (sum_lat/n,sum_long/n)
+    modified_centroid = ((sum_lat+pi[0])/(n+1),(sum_long+pi[0])/(n+1))
+    temporal_distance = (sum_temp/n-(sum_temp+pi[0])/(n+1))**2
+    spatial_distance = vincenty(original_centroid,modified_centroid).meters **2
     return ((1-c)*spatial_distance+c*temporal_distance)**0.5
 
 def insert(sequence,pi,c,sum_lat=0,sum_long=0,sum_temp=0):
@@ -55,7 +83,23 @@ def insert(sequence,pi,c,sum_lat=0,sum_long=0,sum_temp=0):
     temporal_distance = (sum_temp/n-(sum_temp+pi[0])/(n+1))**2
     spatial_distance = lat_distance + long_distance
     return ((1-c)*spatial_distance+c*temporal_distance)**0.5
-	 
+
+def replace_meters(sequence,pi,pj,c,sum_lat=0,sum_long=0,sum_temp=0):
+	n = len(sequence)
+    if sum_lat == 0:
+        for seq in sequence:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+    sum_lat_plus_pj = sum_lat - pi[0] +pj[0]
+    sum_long_plus_pj = sum_long - pi[1] +pj[1]
+    sum_temp_plus_pj = sum_temp - pi[2] +pj[2]
+    original_centroid = (sum_lat/n,sum_long/n)
+    modified_centroid = (sum_lat_plus_pj/n,sum_long_plus_pj/n)
+    temporal_distance = (sum_temp/n-sum_temp_plus_pj/n)**2
+    spatial_distance = vincenty(original_centroid,modified_centroid).meters **2
+    return ((1-c)*spatial_distance+c*temporal_distance)**0.5
+
 def replace(sequence,pi,pj,c,sum_lat=0,sum_long=0,sum_temp=0):
     n = len(sequence)
     if sum_lat == 0:
@@ -288,6 +332,53 @@ def get_identification_matrix(profiles_tw1,profiles_tw2,c):
                     m1 = D[r-1,t-1] + replace(sequence_a,sequence_a[r-1],sequence_b[t-1],c,sum_lat,sum_long,sum_temp)
                     m2 = D[r-1,t] + delete(sequence_a,r-1,c,sum_lat,sum_long,sum_temp)
                     m3 = D[r,t-1] + insert(sequence_a,sequence_b[t-1],c,sum_lat,sum_long,sum_temp)
+                    D[r,t] = min(m1,m2,m3)
+            identification_matrix[i,j] = D[length_sequence_a,length_sequence_b]
+            j += 1
+            if(j >= limit):
+                break
+        i += 1
+        j=0
+        if(i >= limit):
+            break
+    return identification_matrix
+
+# Funcion que construye la matriz de identificacion en que cada indice corresponde
+# a la similitud entre la i-esima tpm y la j-esima secuencia, obtenidas a partir de un
+# perfil de usuario y un periodo de identificacion.
+# len(users_profiles) == len(users_sequences)
+# asume que los usuarios de users_profiles y users_sequences son los mismos
+# get_identification_matrix; get_profiles(...) get_sequences(...) -> [[int]]
+def get_identification_matrix_meters(profiles_tw1,profiles_tw2,c):
+    i = 0
+    j = 0
+    limit = min((len(profiles_tw1),len(profiles_tw2)))
+    identification_matrix = np.zeros((limit,limit))
+    for profile_i in profiles_tw1:
+        sequence_a = profile_i['sequence']
+        sum_lat = 0
+        sum_long = 0
+        sum_temp = 0
+        for seq in sequence_a:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+        length_sequence_a = len(sequence_a)
+        D_0 = np.zeros((length_sequence_a+1,1))
+        for n in range(length_sequence_a):
+            D_0[n+1,0] = D_0[n,0] + delete_meters(sequence_a,n,c)
+        for profile_j in profiles_tw2:
+            sequence_b = profile_j['sequence']
+            length_sequence_b = len(sequence_b)
+            D = np.zeros((length_sequence_a+1,length_sequence_b+1))
+            D[:,0] = D_0[:,0]
+            for s in range(length_sequence_b):
+                D[0,s+1] = D[0,s] + insert_meters(sequence_a,sequence_b[s],c)
+            for r in range(1,length_sequence_a+1):
+                for t in range(1,length_sequence_b+1):
+                    m1 = D[r-1,t-1] + replace_meters(sequence_a,sequence_a[r-1],sequence_b[t-1],c,sum_lat,sum_long,sum_temp)
+                    m2 = D[r-1,t] + delete_meters(sequence_a,r-1,c,sum_lat,sum_long,sum_temp)
+                    m3 = D[r,t-1] + insert_meters(sequence_a,sequence_b[t-1],c,sum_lat,sum_long,sum_temp)
                     D[r,t] = min(m1,m2,m3)
             identification_matrix[i,j] = D[length_sequence_a,length_sequence_b]
             j += 1
