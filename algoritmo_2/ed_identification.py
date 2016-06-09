@@ -30,59 +30,47 @@ def load_metro_dictionary():
 def cost(a_tuple):
 	return a_tuple
 
-def delete(sequence,i,c):
-	n = len(sequence)
-	sum_lat = 0
-	sum_long = 0
-	sum_temp = 0
-	for seq in sequence:
-		sum_lat += seq[0]
-		sum_long += seq[1]
-		sum_temp += seq[2]
-	lat_distance = (sum_lat/n-(sum_lat-sequence[i][0])/(n-1))**2
-	long_distance = (sum_long/n-(sum_long-sequence[i][1])/(n-1))**2
-	temporal_distance = (sum_temp/n-(sum_temp-sequence[i][2])/(n-1))**2
-	spatial_distance = lat_distance + long_distance
-	return ((1-c)*spatial_distance+c*temporal_distance)**0.5
+def delete(sequence,i,c,sum_lat=0,sum_long=0,sum_temp=0):
+    n = len(sequence)
+    if sum_lat == 0:
+        for seq in sequence:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+    lat_distance = (sum_lat/n-(sum_lat-sequence[i][0])/(n-1))**2
+    long_distance = (sum_long/n-(sum_long-sequence[i][1])/(n-1))**2
+    temporal_distance = (sum_temp/n-(sum_temp-sequence[i][2])/(n-1))**2
+    spatial_distance = lat_distance + long_distance
+    return ((1-c)*spatial_distance+c*temporal_distance)**0.5
 
-def insert(sequence,pi,c):
-	n = len(sequence)
-	sum_lat = 0
-	sum_long = 0
-	sum_temp = 0
-	for seq in sequence:
-		sum_lat += seq[0]
-		sum_long += seq[1]
-		sum_temp += seq[2]
-	lat_distance = (sum_lat/n-(sum_lat+(n*pi[0]))/(n+1))**2
-	long_distance = (sum_long/n-(sum_long+(n*pi[0]))/(n+1))**2
-	temporal_distance = (sum_temp/n-(sum_temp+(n*pi[0]))/(n+1))**2
-	spatial_distance = lat_distance + long_distance
-	return ((1-c)*spatial_distance+c*temporal_distance)**0.5
+def insert(sequence,pi,c,sum_lat=0,sum_long=0,sum_temp=0):
+    n = len(sequence)
+    if sum_lat == 0:
+        for seq in sequence:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+    lat_distance = (sum_lat/n-(sum_lat+pi[0])/(n+1))**2
+    long_distance = (sum_long/n-(sum_long+pi[0])/(n+1))**2
+    temporal_distance = (sum_temp/n-(sum_temp+pi[0])/(n+1))**2
+    spatial_distance = lat_distance + long_distance
+    return ((1-c)*spatial_distance+c*temporal_distance)**0.5
 	 
-def replace(sequence,pi,pj,c):
-	n = len(sequence)
-	sum_lat = 0
-	sum_long = 0
-	sum_temp = 0
-	sum_lat_plus_pj = 0
-	sum_long_plus_pj = 0
-	sum_temp_plus_pj = 0
-	for seq in sequence:
-		sum_lat += seq[0]
-		sum_long += seq[1]
-		sum_temp += seq[2]
-		sum_lat_plus_pj += seq[0] +pj[0]
-		sum_long_plus_pj += seq[1] +pj[1]
-		sum_temp_plus_pj += seq[2] +pj[2]
-	sum_lat_plus_pj -= pi[0] +pj[0]
-	sum_long_plus_pj -= pi[1] +pj[1]
-	sum_temp_plus_pj -= pi[2] +pj[2]
-	lat_distance = (sum_lat/n-(sum_lat+sum_lat_plus_pj)/n)/n**2
-	long_distance = (sum_long/n-(sum_long+sum_long_plus_pj)/n)**2
-	temporal_distance = (sum_temp/n-(sum_temp+sum_temp_plus_pj)/n)**2
-	spatial_distance = lat_distance + long_distance
-	return ((1-c)*spatial_distance+c*temporal_distance)**0.5
+def replace(sequence,pi,pj,c,sum_lat=0,sum_long=0,sum_temp=0):
+    n = len(sequence)
+    if sum_lat == 0:
+        for seq in sequence:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+    sum_lat_plus_pj = sum_lat - pi[0] +pj[0]
+    sum_long_plus_pj = sum_long - pi[1] +pj[1]
+    sum_temp_plus_pj = sum_temp - pi[2] +pj[2]
+    lat_distance = (sum_lat/n-sum_lat_plus_pj/n)**2
+    long_distance = (sum_long/n-sum_long_plus_pj/n)**2
+    temporal_distance = (sum_temp/n-sum_temp_plus_pj/n)**2
+    spatial_distance = lat_distance + long_distance
+    return ((1-c)*spatial_distance+c*temporal_distance)**0.5
 
 #sequence_a: S(s1,....sn)
 #sequence_b: T(t1,....tn)
