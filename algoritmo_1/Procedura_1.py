@@ -19,7 +19,7 @@ from auxiliar_functions import *
 
 
 # Cargar diccionario de estaciones de metro
-dict_metro = load_subway_dictionary()
+dict_metro = load_metro_dictionary()
 
 # - Leer hace bien 
 
@@ -109,7 +109,7 @@ df_id_period = df_id_period.sort_values(by=['id', 'tiempo_subida'])
 
 # In[25]:
 
-frame['diferencia_tiempo'] = (frame['tiempo_subida']-frame['tiempo_subida'].shift()).fillna(0)
+df_id_period['diferencia_tiempo'] = (df_id_period['tiempo_subida']-df_id_period['tiempo_subida'].shift()).fillna(0)
 
 
 # Reflexion: Debiese utilizar por ahora solo las columnas que me sirven, sino el todos contra todos será muy dificil
@@ -142,7 +142,7 @@ with open('df_septiembre.pickle', 'w') as f:
 
 # Debo extraer la secuencia de posiciones de las transacciones, y el arreglo de locaciones mas visitadas
 
-profiles = tpm_identification.get_sequences(df_id_period['id'],fdf_id_period['par_subida'],df_id_period['par_bajada'])
+profiles = tpm_identification.get_sequences(df_id_period['id'],df_id_period['par_subida'],df_id_period['par_bajada'])
 # - Por ej. la secuencia 2 es un diccionario con las locaciones minimas, las visitas a esas locaciones, la secuencia y el id del usuario
 
 # In[31]:
