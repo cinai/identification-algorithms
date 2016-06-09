@@ -248,21 +248,20 @@ def get_sequences(ids,lat_subidas,long_subidas,t_subidas,lat_bajadas,long_bajada
 # Funcion que compara la similitud entre un perfil y una secuencia de transacciones
 # Se normaliza el calculo según el largo de la secuencia
 # get_simliarity: [[int]] [string] [string] int int-> int 
-def get_similarity(sequence_a,sequence_b):
-	length_sequence_a = len(sequence_a)
-	length_sequence_b = len(sequence_b)
+def get_similarity(sequence_a,sequence_b,c,sum_lat,sum_long,sum_temp):
+    length_sequence_a = len(sequence_a)
+    length_sequence_b = len(sequence_b)
     D = np.zeros((length_sequence_a+1,length_sequence_b+1))
     for i in range(length_sequence_a):
-	    D[i+1,0] = D[i,0] + delete(sequence_a,i,c)
-	for j in range(length_sequence_b):
-	    D[0,j+1] = D[0,j] + insert(sequence_a,sequence_b[j],c)
-	for i in range(1,length_sequence_a+1):
-	    for j in range(1,length_sequence_b+1):
-	        m1 = D[i-1,j-1] + replace(sequence_a,sequence_a[i-1],sequence_b[j-1],c)
-	        m2 = D[i-1,j] + delete(sequence_a,i-1,c)
-	        m3 = D[i,j-1] + insert(sequence_a,sequence_b[j-1],c)
-	        D[i,j] = min(m1,m2,m3)
-
+        D[i+1,0] = D[i,0] + delete(sequence_a,i,c)
+    for j in range(length_sequence_b):
+        D[0,j+1] = D[0,j] + insert(sequence_a,sequence_b[j],c)
+    for i in range(1,length_sequence_a+1):
+        for j in range(1,length_sequence_b+1):
+            m1 = D[i-1,j-1] + replace(sequence_a,sequence_a[i-1],sequence_b[j-1],c,sum_lat,sum_long,sum_temp)
+            m2 = D[i-1,j] + delete(sequence_a,i-1,c,sum_lat,sum_long,sum_temp)
+            m3 = D[i,j-1] + insert(sequence_a,sequence_b[j-1],c,sum_lat,sum_long,sum_temp)
+            D[i,j] = min(m1,m2,m3)
     return D[length_sequence_a,length_sequence_b]
 
 # Funcion que construye la matriz de identificacion en que cada indice corresponde
@@ -271,17 +270,43 @@ def get_similarity(sequence_a,sequence_b):
 # len(users_profiles) == len(users_sequences)
 # asume que los usuarios de users_profiles y users_sequences son los mismos
 # get_identification_matrix; get_profiles(...) get_sequences(...) -> [[int]]
-def get_identification_matrix(profiles):
-	i = 0
-	j = 0
-	limit = len(profiles)
-	identification_matrix = np.zeros((limit,limit))
-	for profile_i in profiles:
-		sequence_a = profile_i['sequence']
-		j=0
-		for profile_j in profiles:
-			sequence_b = profile_j['sequence']
-			identification_matrix[i,j] = get_similarity(sequence_a,sequence_b)
-			j += 1
-		i += 1
-	return identification_matrix
+def get_identification_matrix(profiles_tw1,profiles_tw2,c):
+    i = 0
+    j = 0
+    limit = min((len(profiles_tw1),len(profiles_tw2)))
+    identification_matrix = np.zeros((limit,limit))
+    for profile_i in profiles_tw1:
+        sequence_a = profile_i['sequence']
+        sum_lat = 0
+        sum_long = 0
+        sum_temp = 0
+        for seq in sequence_a:
+            sum_lat += seq[0]
+            sum_long += seq[1]
+            sum_temp += seq[2]
+        length_sequence_a = len(sequence_a)
+        D_0 = np.zeros((length_sequence_a+1,1))
+        for n in range(length_sequence_a):
+            D_0[n+1,0] = D_0[n,0] + delete(sequence_a,n,c)
+        for profile_j in profiles_tw2:
+            sequence_b = profile_j['sequence']
+            length_sequence_b = len(sequence_b)
+            D = np.zeros((length_sequence_a+1,length_sequence_b+1))
+            D[:,0] = D_0[:,0]
+            for s in range(length_sequence_b):
+                D[0,s+1] = D[0,s] + insert(sequence_a,sequence_b[s],c)
+            for r in range(1,length_sequence_a+1):
+                for t in range(1,length_sequence_b+1):
+                    m1 = D[r-1,t-1] + replace(sequence_a,sequence_a[r-1],sequence_b[t-1],c,sum_lat,sum_long,sum_temp)
+                    m2 = D[r-1,t] + delete(sequence_a,r-1,c,sum_lat,sum_long,sum_temp)
+                    m3 = D[r,t-1] + insert(sequence_a,sequence_b[t-1],c,sum_lat,sum_long,sum_temp)
+                    D[r,t] = min(m1,m2,m3)
+            identification_matrix[i,j] = D[length_sequence_a,length_sequence_b]
+            j += 1
+            if(j >= limit):
+                break
+        i += 1
+        j=0
+        if(i >= limit):
+            break
+    return identification_matrix
