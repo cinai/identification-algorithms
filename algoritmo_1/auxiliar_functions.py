@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
 import csv
+import os
 
-path_subway_dictionary = '/home/cata/Documentos/Datois/Diccionario-EstacionesMetro.csv'
-path_csv_sequences = '/home/cata/Documentos/sequences/'
+if os.name == 'nt':
+    path_subway_dictionary = 'C:\Users\catalina\Documents\Datois\Diccionario-EstacionesMetro.csv'
+    path_csv_sequences = 'C:\Users\catalina\Documents\sequences\\'
+else:
+    path_subway_dictionary = '/home/cata/Documentos/Datois/Diccionario-EstacionesMetro.csv'
+    path_csv_sequences = '/home/cata/Documentos/sequences/'
 
 # Función que carga las estaciones de metro
 # en un diccionario
