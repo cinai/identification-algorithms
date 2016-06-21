@@ -272,6 +272,34 @@ def get_similarity(tpm,mls,sequence,expzero=-800,expnan=-800):
 
     return similarity
 
+# Funcion que compara la similitud entre un perfil y una secuencia de transacciones
+# Se normaliza el calculo según el largo de la secuencia
+# get_simliarity: [[int]] [string] [string] int int-> int 
+def get_spatiotemporal_similarity(tpm,mls,sequence,timestamps,expzero=-800,expnan=-800):
+    similarity = 0
+    travel_counter = 0
+    length_sequence = len(sequence)
+    p_zero = pow(10,expzero/length_sequence)
+    p_nan = pow(10, expnan/length_sequence)
+    index_subida = buscar_locacion(mls,sequence[0])
+    for travel in sequence[1:]:
+    	horario = get_horario(timestamps[travel_counter].time())
+        # buscar pik en tpm
+        index_bajada = buscar_locacion(mls,travel)
+        if(index_bajada < 0 or index_subida < 0):
+            pik = p_nan
+        else:
+            pik = tpm[(index_subida*4)+horario, index_bajada]
+        if(pik != pik):
+            pik = p_nan
+        elif(pik == 0):
+            pik = p_zero
+        # sumar log10
+        similarity += np.log10(pik)
+        index_subida = index_bajada
+        travel_counter += 1
+    return similarity
+
 # Funcion que construye la matriz de identificacion en que cada indice corresponde
 # a la similitud entre la i-esima tpm y la j-esima secuencia, obtenidas a partir de un
 # perfil de usuario y un periodo de identificacion.
@@ -289,6 +317,32 @@ def get_identification_matrix(users_profiles,users_sequences):
 		mls = profile['mls']
 		for data_sequence in users_sequences:
 			identification_matrix[i,j] = get_similarity(tpm,mls,data_sequence['sequence'])
+			j += 1
+			if(j >= limit):
+				break
+		i += 1
+		j = 0
+		if(i >= limit):
+			break
+	return identification_matrix
+
+# Funcion que construye la matriz de identificacion en que cada indice corresponde
+# a la similitud entre la i-esima tpm y la j-esima secuencia, obtenidas a partir de un
+# perfil de usuario y un periodo de identificacion.
+# len(users_profiles) == len(users_sequences)
+# asume que los usuarios de users_profiles y users_sequences son los mismos
+# get_identification_matrix; get_profiles(...) get_sequences(...) -> [[int]]
+def get_spatiotemporal_identification_matrix(users_profiles,users_sequences):
+	i = 0
+	j = 0
+	limit = np.min((len(users_profiles),len(users_sequences)))
+	identification_matrix = np.zeros((limit,limit))
+	for profile in users_profiles:
+		tpm = profile['tpm']
+		id_user = profile['user_id']
+		mls = profile['mls']
+		for data_sequence in users_sequences:
+			identification_matrix[i,j] = get_spatiotemporal_similarity(tpm,mls,data_sequence['sequence'],data_sequence['timestamps'])
 			j += 1
 			if(j >= limit):
 				break
@@ -492,9 +546,6 @@ def get_spatiotemporal_sequences(ids, timestamps, par_subidas, par_bajadas):
 			nvisitas[index_subida] = nvisitas[index_subida]+1
 			if(par_subida!=last_stop):
 				sequence.append(par_subida)
-				timestamp_sequence.append(timestamp)
-			else:
-				timestamp_sequence.pop()
 				timestamp_sequence.append(timestamp)
 			# subida estaba de antes y no hay bajada
 			# REVISAR SI ESTO NO ES REDUNDANTE!
