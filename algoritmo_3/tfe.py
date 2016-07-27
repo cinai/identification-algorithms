@@ -9,6 +9,61 @@ import auxiliar_functions
 from scipy import stats
 import scipy.integrate as integrate
 from scipy.cluster.hierarchy import linkage, fcluster
+from borrador import get_features
+def general_feature_extraction(df_sequence):
+	weekday,weekend = split_sequence_by_weekdays(df_sequence)
+	if weekday.empty:
+		time_first_journey_weekday = np.nan
+		time_last_journey_weekday= np.nan
+		percentage_different_first_origin_weekday = np.nan
+		percentage_different_last_origin_weekday = np.nan
+		shortest_activity_length_weekday = np.nan
+		longest_activity_length_weekday = np.nan
+		mean_trips_weekdays = 0
+	else:
+		time_first_journey_weekday = get_mean_start_time_first_trip(weekday)
+		time_last_journey_weekday = get_mean_start_time_last_trip(weekday) 
+		percentage_different_first_origin_weekday = get_percentage_different_first_origin(weekday)
+		percentage_different_last_origin_weekday = get_percentage_different_last_origin(weekday)
+		shortest_activity_length_weekday = get_mean_shortest_activity_length(weekday)
+		longest_activity_length_weekday = get_mean_longest_activity_length(weekday)
+		mean_trips_weekdays = get_mean_n_trips(weekday)
+	if weekend.empty:
+		time_first_journey_weekend = np.nan
+		time_last_journey_weekend = np.nan
+		percentage_different_first_origin_weekend = np.nan
+		percentage_different_last_origin_weekend = np.nan
+		shortest_activity_length_weekend = np.nan
+		longest_activity_length_weekdend = np.nan
+		mean_trips_weekend = 0
+	else:
+		time_first_journey_weekend = get_mean_start_time_first_trip(weekend) 
+		time_last_journey_weekend = get_mean_start_time_last_trip(weekend) 
+		percentage_different_first_origin_weekend = get_percentage_different_first_origin(weekend)
+		percentage_different_last_origin_weekend= get_percentage_different_last_origin(weekend)
+		shortest_activity_length_weekend = get_mean_shortest_activity_length(weekend)
+		longest_activity_length_weekdend = get_mean_longest_activity_length(weekend)
+		mean_trips_weekend = get_mean_n_trips(weekend)
+	mode_n_trips = get_mode_trips_per_day(df_sequence)
+	most_frequent_number_of_stages = get_most_frequent_number_of_stages(df_sequence)
+
+	[msal,mlal,kmDistance,kmMaxDist,kmMinDist,rg,unc_entropy, \
+	random_entropy,p100_diff_last_origin,p100_diff_first_origin,card_type,\
+	start_time,end_time,traveled_days,traveled_days_bs,frequence_regularity,\
+	p100_exclusive_bus_days,p100_exclusive_metro_days,P100_bus_trips] = get_features(df_sequence)
+
+	return [time_first_journey_weekday,time_last_journey_weekday,\
+	time_first_journey_weekend,time_last_journey_weekend,kmDistance,\
+	kmMaxDist,kmMinDist,rg,unc_entropy, \
+	random_entropy,percentage_different_first_origin_weekday \
+	,percentage_different_last_origin_weekday,percentage_different_first_origin_weekend, \
+	percentage_different_last_origin_weekend,card_type,\
+	shortest_activity_length_weekday,longest_activity_length_weekday, \
+	shortest_activity_length_weekend,longest_activity_length_weekdend, \
+	traveled_days,traveled_days_bs,\
+	p100_exclusive_bus_days,p100_exclusive_metro_days,P100_bus_trips, \
+	mode_n_trips,frequence_regularity,mean_trips_weekdays,mean_trips_weekend,most_frequent_number_of_stages]
+
 # Auxiliar Functions
 
 def split_sequence_by_weekdays(df_sequence):
@@ -38,7 +93,7 @@ def get_mean_shortest_activity_length(df_sequence):
 			time_diff = auxiliar_functions.td_to_minutes(stage.diferencia_tiempo)
 			if shortest_activities[n_days] != shortest_activities[n_days] or shortest_activities[n_days] > time_diff :
 				shortest_activities[n_days] = time_diff
-	return np.mean(shortest_activities)
+	return np.nanmean(shortest_activities)
 
 # 30
 # get_mean_longest_activity_length: pandas.DataFrame -> Timedelta
@@ -135,6 +190,8 @@ def get_regularity(chronology,window):
 
 ## Travel Distance 
 # 33
+# get_traveled_distance: pandas.DataFrame -> float
+# entrega la distancia total viajada 
 def get_traveled_distance(df_sequence):
 	last_stop = ""
 	last_lat = ""
@@ -369,9 +426,12 @@ def get_percentage_different_last_origin(df_sequence):
 	if last_origin :
 		last_origins.append(last_origin)
 	the_set = set(last_origins)
+	if len(last_origins) == 0:
+		return np.nan
 	return len(the_set)*1.0/len(last_origins)*100
 
 # 30 
+# a veces no hay información sobre el paradero, en estos casos se retorna nan
 def get_percentage_different_first_origin(df_sequence):
 	first_origins = []
 	last_weekday = -1
@@ -381,9 +441,13 @@ def get_percentage_different_first_origin(df_sequence):
 				first_origins.append(stage.par_subida)
 			last_weekday = stage.weekday
 	the_set = set(first_origins)
+	if len(first_origins) == 0:
+		return np.nan
 	return len(the_set)*1.0/len(first_origins)*100
 
 def get_upToX_pi_locations(pi_sums,x):
+	if x == 1:
+		return [range(len(pi_sums)),100]
 	the_indexs = []
 	the_sum = 0
 	while True:
@@ -395,14 +459,14 @@ def get_upToX_pi_locations(pi_sums,x):
 		pi_sums[index] = 0
 	return [the_indexs,the_sum]
 # ?
-def get_ROIs(df_sequence,x):
+def get_ROIs(df_sequence,x,limit_meters):
 	X,locations,pi_locations = get_latlong_points(df_sequence)
 	if len(locations) == 1:
 		return [[{"lat":X[0,0],"long":X[0,1]}],1.0]
 	elif len(locations) < 1:
 		return None
 	Z = linkage(X,'weighted',lambda x,y: vincenty(x,y).meters)
-	clusters = fcluster(Z,500,criterion='distance')
+	clusters = fcluster(Z,limit_meters,criterion='distance')
 	centroids = []
 	nums_by_clusters =[]
 	pi_sums = []
@@ -462,24 +526,27 @@ def get_mean_start_time_first_trip(df_sequence):
 		if stage.weekday != last_weekday:
 			start_times.append(int(auxiliar_functions.hour_to_seconds(stage.tiempo_subida)))
 		last_weekday = stage.weekday
-	return int(np.mean(start_times))
+	return int(np.nanmean(start_times))
 # 30
 # funciona muy mal cuando es irregular
+#caso raro: cuando hay transacciones pero continuaciones del día anterior, se retorna nan
 def get_mean_start_time_last_trip(df_sequence):
-	end_times = []
-	last_weekday = -1
-	an_end_time = 0
-	for index, stage in df_sequence.iterrows():
-		if stage.weekday != last_weekday and last_weekday > -1:
-			if an_end_time:
-				end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
-				an_end_time = None
-		if stage.netapa == 1:
-			an_end_time = stage.tiempo_subida
-		last_weekday = stage.weekday
-	end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
-	return int(np.mean(end_times))
- 
+	try:
+		end_times = []
+		last_weekday = -1
+		an_end_time = 0
+		for index, stage in df_sequence.iterrows():
+			if stage.weekday != last_weekday and last_weekday > -1:
+				if an_end_time:
+					end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+					an_end_time = None
+			if stage.netapa == 1:
+				an_end_time = stage.tiempo_subida
+			last_weekday = stage.weekday
+		end_times.append(int(auxiliar_functions.hour_to_seconds(an_end_time)))
+		return int(np.nanmean(end_times))
+	except:
+ 		return np.nan
 ## Travel Frequency 
 
 # 
@@ -608,3 +675,27 @@ def get_percentage_bus_trips(df_sequence):
 			bus_counter += 1
 	return bus_counter/len(df_sequence)*100
 	
+def get_most_frequent_number_of_stages(df_sequence):
+	try:
+		return df_sequence.groupby(['nviaje'])['netapa'].max().mode()[0]
+	except IndexError:
+		return np.nan
+
+#a veces no hay moda, se podria considerar el promedio, pero se opto por decir que no hay moda
+def get_mode_trips_per_day(df_sequence):
+	try:
+		mode = df_sequence[df_sequence['netapa']==1].groupby(['date'])['nviaje'].count().mode()
+		if len(mode) == 0:
+			return np.nan
+		return mode[0]
+	except IndexError:
+		return np.nan
+
+def get_mean_n_trips(df_sequence):
+	try:
+		mean = df_sequence[df_sequence['netapa']==1].groupby(['date'])['nviaje'].count().mean()
+		if mean != mean:
+			return 0
+		return mean
+	except IndexError:
+		return 0

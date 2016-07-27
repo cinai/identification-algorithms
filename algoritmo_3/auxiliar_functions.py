@@ -63,12 +63,14 @@ def queryToCSV(matrix, user_id, user_index, str_diff = ''):
     file_path = path_csv_sequences + str(user_id) + '_' + str(user_index) + '_' + str_diff + '.csv'
     df_query.to_csv(path_or_buf=file_path)
 
-
+def get_date(x):
+    return str(x.date())
 # Función que configura el data frame con los datos
 def frame_config(frame):
     frame['tiempo_subida'] = pd.to_datetime(frame.tiempo_subida)
     frame = frame.apply(update_vals, axis=1)
     frame['weekday'] = frame.tiempo_subida.dt.dayofweek
+    frame['date'] = frame['tiempo_subida'].apply(get_date)
     frame['lat_subida'] = frame.apply(add_vals,args=('lat','par_subida'),axis=1)
     frame['lat_bajada'] = frame.apply(add_vals,args=('lat','par_bajada'),axis=1)
     frame['long_subida'] = frame.apply(add_vals,args=('long','par_subida'),axis=1)
@@ -105,3 +107,10 @@ def share_rois(rois_a,rois_b):
             if vincenty((lat_a_roi,long_a_roi),(lat_b_roi,long_b_roi)).meters < 500:
                 return True
     return False
+
+def normalizar(vector):
+    a_max = np.max(vector)
+    a_min = np.min(vector)
+    for i in range(len(vector)):
+        vector[i] = (vector[i] - a_min)/a_max
+    return vector 
