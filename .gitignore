@@ -1,0 +1,17 @@
+algoritmo_3/data/
+algoritmo_1/data/
+*.pyc
+*.eps
+*.pickle
+*.csv
+*.pickl
+*.data
+algoritmo_3/Test/.ipynb_checkpoints/
+algoritmo_3/Post Presentation/.ipynb_checkpoints/Proceduria extraccion rois 60% 19 features-checkpoint.ipynb
+algoritmo_3/Post Presentation/.ipynb_checkpoints/Feature Extractor Post Presentation-checkpoint.ipynb
+algoritmo_3/Post Presentation/.ipynb_checkpoints/ResultsExploration-checkpoint.ipynb
+algoritmo_3/Post Presentation/.ipynb_checkpoints/Analisis cambio de criterio de rois -checkpoint.ipynb
+*.cs
+*.ipynb
+*.png
+*.ep

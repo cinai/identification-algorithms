@@ -1,0 +1,15 @@
+Datos Algoritmo 3
+
+Archivo							Descripción
+-------------------------------------------------------------------------------------------
+complete_features_without_norm_abril_sept.pickle	2 listas, vector de features de abril y de septiembre
+
+rois_meters_data.pickle					dos listas de abril y septiembre, compuestas por duplas de listas de diccionarios e ints, cada diccionario representa un roi de una tarjeta, y el int representa el porcentaje de transacciones asociado a la lista de diccionarios.
+
+shared_all_rois.pickle 					matriz que contiene el numero de rois compartidos por cada combinacion fila-columna
+
+
+Externo
+
+--------------------------------------------------------------------------------------------
+filter_cardtype.pickle					diccionario que contiene los ids de los identificados con filtro de card_type y sin filtro

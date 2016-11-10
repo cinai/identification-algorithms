@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import csv
 import os
+import numpy as np
 
 if os.name == 'nt':
     path_subway_dictionary = 'C:\Users\catalina\Documents\Datois\Diccionario-EstacionesMetro.csv'
@@ -58,3 +59,30 @@ def frame_config(frame):
     frame = frame.sort_values(by=['id', 'tiempo_subida'])
     frame['diferencia_tiempo'] = (frame['tiempo_subida']-frame['tiempo_subida'].shift()).fillna(0)
     return frame.apply(update_vals, axis=1)
+
+
+def get_n_correct_tpm(a_matrix,limit):
+    identified_indexs = [] #almacena los indices de que secuencia fue seleccionada como match
+    wrong_indexs = [] # almacena los indices de los que se clasificaron incorrectamente
+    correct_indexs = [] # almacena los indices de los que se clasificaron correctamente
+    correct_distance = []
+    selected_distance = [] # almacena la distancia de los seleccionados
+    abstenidos = []
+    n_identified = 0
+    wrong_distances = []
+    for i in range(limit):
+        the_index = np.argmax(a_matrix[:,i])
+        if a_matrix[the_index,i] < -800:
+            abstenidos.append(the_index)
+            continue
+        identified_indexs.append(the_index)
+        selected_distance.append(a_matrix[the_index,i])
+        distance = a_matrix[i,i]
+        if(the_index!=i):
+            wrong_indexs.append(i)
+            wrong_distances.append(distance)
+        else:
+            correct_indexs.append(the_index)
+            correct_distance.append(distance)
+            n_identified += 1
+    return [n_identified,selected_distance,identified_indexs,abstenidos,correct_indexs,correct_distance,wrong_indexs,wrong_distances]
