@@ -3,12 +3,9 @@ import csv
 import os
 import numpy as np
 
-if os.name == 'nt':
-    path_subway_dictionary = 'C:\Users\catalina\Documents\Datois\Diccionario-EstacionesMetro.csv'
-    path_csv_sequences = 'C:\Users\catalina\Documents\sequences\\'
-else:
-    path_subway_dictionary = '/home/cata/Documentos/Datois/Diccionario-EstacionesMetro.csv'
-    path_csv_sequences = '/home/cata/Documentos/sequences/'
+data_path = os.path.join(os.getcwd(),'..','data')
+path_subway_dictionary = os.path.join(data_path,'System_data','Diccionario-EstacionesMetro.csv')
+path_csv_sequences = os.path.join(data_path,'Users_data','sequences')
 
 # Función que carga las estaciones de metro
 # en un diccionario
